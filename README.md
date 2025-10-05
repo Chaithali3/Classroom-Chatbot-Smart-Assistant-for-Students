@@ -7,11 +7,17 @@ Classroom Chatbot is an AI-based assistant that helps students get instant updat
 🌟 Key Features
 
 🔐 Login/Signup System – Secure access for all users.
+
 👥 Group Chat System – Admins create class groups, post updates, PDFs, images, and deadlines.
+
 🔔 Auto Reminders – Sends notifications before submissions or events.
+
 💬 Personal Chatbot – Students can ask doubts like “When is the assignment due?”
+
 🧭 Smart Query Handling – Replies instantly or forwards new queries to CR/faculty.
+
 🕵 Anonymous Mode – Ask questions without revealing identity.
+
 🔒 Privacy Control – User chooses whether to send the query or not.
 
 ⚙ Workflow
