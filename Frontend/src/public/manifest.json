@@ -1,0 +1,62 @@
+{
+  "name": "Classroom Chatbot Platform",
+  "short_name": "ClassBot",
+  "description": "A comprehensive classroom chatbot platform for students with AI assistance, group management, and anonymous messaging",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Personal Bot",
+      "short_name": "Bot",
+      "description": "Open your personal AI assistant",
+      "url": "/bot",
+      "icons": [{ "src": "/icon-bot.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Groups",
+      "short_name": "Groups",
+      "description": "View your groups",
+      "url": "/groups",
+      "icons": [{ "src": "/icon-groups.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-dashboard.png", "sizes": "96x96" }]
+    }
+  ]
+}
