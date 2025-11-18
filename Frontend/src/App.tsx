@@ -30,6 +30,8 @@ export interface User {
   name: string;
   email: string;
   role: 'Student' | 'CR' | 'Faculty';
+  // Optional flag for site-level admin access (demo/testing)
+  isSiteAdmin?: boolean;
   avatar?: string;
 }
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRef } from 'react';
 import { motion } from 'motion/react';
 import { AppLayout } from './AppLayout';
 import { User } from '../App';
@@ -21,7 +22,7 @@ import {
   BookOpen,
   Crown
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface GroupsPageProps {
   user: User;
@@ -40,6 +41,15 @@ interface GroupItem {
   posts?: number;
   isAdmin?: boolean;
   isMember?: boolean;
+  createdBy?: string;
+  membersList?: Array<{
+    id: string;
+    name: string;
+    role: 'Faculty' | 'CR' | 'Student';
+    avatar?: string;
+    isAdmin?: boolean;
+    hasMessagePermission?: boolean;
+  }>;
 }
 
 // Start with no pre-created groups — the UI will be empty until the user creates or joins groups
@@ -61,7 +71,45 @@ export function GroupsPage({ user, navigate, logout, onSelectGroup }: GroupsPage
     tags: ''
   });
 
-  const [groups, setGroups] = useState<GroupItem[]>(initialGroups);
+    // Load persisted groups from localStorage so group creators remain admins across pages
+    const STORAGE_KEY = `groups_v1_${user.id}`;
+  const loadGroups = (): GroupItem[] => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return initialGroups;
+      return JSON.parse(raw) as GroupItem[];
+    } catch (err) {
+      return initialGroups;
+    }
+  };
+
+  const [groups, setGroups] = useState<GroupItem[]>(loadGroups());
+
+  // Persist groups whenever they change.
+  // Merge with existing storage to reduce race conditions and dedupe by `code`.
+  const persistGroups = (next: GroupItem[]) => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const existing = raw ? (JSON.parse(raw) as GroupItem[]) : [];
+      // prefer entries from `next` (they are the most recent) then fall back to existing
+      const combined = [...next, ...existing];
+      const seen = new Set<string>();
+      const deduped: GroupItem[] = [];
+      for (const g of combined) {
+        const code = (g.code || '').toString().toLowerCase();
+        if (!code) continue;
+        if (seen.has(code)) continue;
+        seen.add(code);
+        deduped.push(g);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(deduped));
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  // Prevent duplicate join actions when user clicks rapidly
+  const joinInProgress = useRef<Record<string, boolean>>({});
 
   const handleCreateGroup = () => {
     const created: GroupItem = {
@@ -74,8 +122,23 @@ export function GroupsPage({ user, navigate, logout, onSelectGroup }: GroupsPage
       posts: 0,
       isAdmin: true,
       isMember: true
+      ,createdBy: user.id,
+      membersList: [
+        {
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          avatar: user.avatar,
+          isAdmin: true,
+          hasMessagePermission: true
+        }
+      ]
     };
-    setGroups(prev => [created, ...prev]);
+    setGroups(prev => {
+      const next = [created, ...prev];
+      persistGroups(next);
+      return next;
+    });
     toast.success(`Group "${created.name}" created successfully!`);
     setCreateGroupOpen(false);
     setNewGroup({
@@ -89,18 +152,71 @@ export function GroupsPage({ user, navigate, logout, onSelectGroup }: GroupsPage
 
   const handleJoinByCode = () => {
     if (joinCode.trim()) {
-      // Create a minimal group record to represent the joined group
-      const joined: GroupItem = {
-        id: Date.now().toString() + '-' + Math.random().toString(36).slice(2,6),
-        name: `Group ${joinCode}`,
-        code: joinCode,
-        description: '',
-        members: 1,
-        posts: 0,
-        isAdmin: false,
-        isMember: true
-      };
-      setGroups(prev => [joined, ...prev]);
+      // If a group with this code already exists, update it instead of creating duplicates
+      const codeNormalized = joinCode.trim().toLowerCase();
+      // Prevent double-submit for same code
+      if (joinInProgress.current[codeNormalized]) {
+        return;
+      }
+      joinInProgress.current[codeNormalized] = true;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const existing = raw ? (JSON.parse(raw) as GroupItem[]) : groups;
+        const idx = existing.findIndex(g => (g.code || '').toString().toLowerCase() === codeNormalized);
+        if (idx !== -1) {
+          // update existing record: mark as member and add to membersList
+          const g = existing[idx];
+          g.isMember = true;
+          g.members = (g.members || 0) + 1;
+          g.membersList = g.membersList || [];
+          if (!g.membersList.some(m => m.id === user.id)) {
+            g.membersList.push({ id: user.id, name: user.name, role: user.role, avatar: user.avatar, isAdmin: false, hasMessagePermission: true });
+          }
+          existing[idx] = g;
+          persistGroups(existing);
+          setGroups(existing);
+        } else {
+          // Create a minimal group record to represent the joined group
+          const joined: GroupItem = {
+            id: Date.now().toString() + '-' + Math.random().toString(36).slice(2,6),
+            name: `Group ${joinCode}`,
+            code: joinCode,
+            description: '',
+            members: 1,
+            posts: 0,
+            isAdmin: false,
+            isMember: true,
+            createdBy: undefined,
+            membersList: [{ id: user.id, name: user.name, role: user.role, avatar: user.avatar, isAdmin: false, hasMessagePermission: true }]
+          };
+          setGroups(prev => {
+            const next = [joined, ...prev];
+            persistGroups(next);
+            return next;
+          });
+        }
+      } catch (err) {
+        // fallback to creating a new group in-memory
+        const joined: GroupItem = {
+          id: Date.now().toString() + '-' + Math.random().toString(36).slice(2,6),
+          name: `Group ${joinCode}`,
+          code: joinCode,
+          description: '',
+          members: 1,
+          posts: 0,
+          isAdmin: false,
+          isMember: true,
+          createdBy: undefined,
+          membersList: [{ id: user.id, name: user.name, role: user.role, avatar: user.avatar, isAdmin: false, hasMessagePermission: true }]
+        };
+        setGroups(prev => {
+          const next = [joined, ...prev];
+          persistGroups(next);
+          return next;
+        });
+      } finally {
+        joinInProgress.current[codeNormalized] = false;
+      }
       toast.success('Successfully joined the group!');
       setJoinGroupOpen(false);
       setJoinCode('');
@@ -198,7 +314,7 @@ export function GroupsPage({ user, navigate, logout, onSelectGroup }: GroupsPage
 
                     <div className="space-y-2">
                       <Label>Privacy</Label>
-                      <Select value={newGroup.privacy} onValueChange={(value) => setNewGroup({ ...newGroup, privacy: value })}>
+                      <Select value={newGroup.privacy} onValueChange={(value: string) => setNewGroup({ ...newGroup, privacy: value })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -309,22 +425,46 @@ export function GroupsPage({ user, navigate, logout, onSelectGroup }: GroupsPage
 
                 <div className="flex gap-2">
                   {group.isMember ? (
-                    <Button className="flex-1" onClick={(e) => {
+                    <Button className="flex-1" onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       onSelectGroup(group.id);
                     }}>
                       Open
                     </Button>
                   ) : (
-                    <Button className="flex-1" variant="outline" onClick={(e) => {
+                    <Button className="flex-1" variant="outline" onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      const key = (group.id || group.code || '').toString();
+                      if (joinInProgress.current[key]) return;
+                      joinInProgress.current[key] = true;
+                      try {
+                        const raw = localStorage.getItem(STORAGE_KEY);
+                        const parsed = raw ? (JSON.parse(raw) as GroupItem[]) : groups;
+                        const idx = parsed.findIndex(g => g.id === group.id);
+                        if (idx !== -1) {
+                          const g = parsed[idx];
+                          g.isMember = true;
+                          g.members = (g.members || 0) + 1;
+                          g.membersList = g.membersList || [];
+                          if (!g.membersList.some(m => m.id === user.id)) {
+                            g.membersList.push({ id: user.id, name: user.name, role: user.role, avatar: user.avatar, isAdmin: false, hasMessagePermission: true });
+                          }
+                          parsed[idx] = g;
+                          persistGroups(parsed);
+                          setGroups(parsed);
+                        }
+                      } catch (err) {
+                        // ignore
+                      } finally {
+                        joinInProgress.current[key] = false;
+                      }
                       toast.success('Joined group successfully!');
                     }}>
                       Join
                     </Button>
                   )}
                   {group.isAdmin && (
-                    <Button variant="outline" size="icon" onClick={(e) => {
+                    <Button variant="outline" size="icon" onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       toast.info('Group settings');
                     }}>

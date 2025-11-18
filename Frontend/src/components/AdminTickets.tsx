@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { AppLayout } from './AppLayout';
 import { User } from '../App';
@@ -20,7 +20,7 @@ import {
   Send,
   Star
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface AdminTicketsProps {
   user: User;
@@ -28,41 +28,8 @@ interface AdminTicketsProps {
   logout: () => void;
 }
 
-const mockTickets = [
-  {
-    id: '1',
-    student: 'Anonymous',
-    message: 'Can you explain the time complexity of BST operations?',
-    group: 'CS-301',
-    status: 'new',
-    priority: 'medium',
-    anonymous: true,
-    createdAt: '2 hours ago',
-    context: ['Lecture 10: Trees', 'Assignment 3'],
-  },
-  {
-    id: '2',
-    student: 'Sarah Williams',
-    message: 'I need an extension for the Physics lab report due to illness.',
-    group: 'PHY-201',
-    status: 'assigned',
-    priority: 'high',
-    anonymous: false,
-    createdAt: '5 hours ago',
-    context: ['Lab Report Assignment'],
-  },
-  {
-    id: '3',
-    student: 'Mike Brown',
-    message: 'Where can I find the study materials for Chapter 5?',
-    group: 'MGT-101',
-    status: 'closed',
-    priority: 'low',
-    anonymous: false,
-    createdAt: '1 day ago',
-    context: ['Study Resources'],
-  },
-];
+// Start with no pre-seeded tickets; read any stored tickets created during runtime
+const STORAGE_KEY = 'admin_tickets_v1';
 
 export function AdminTickets({ user, navigate, logout }: AdminTicketsProps) {
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
@@ -70,12 +37,29 @@ export function AdminTickets({ user, navigate, logout }: AdminTicketsProps) {
   const [filter, setFilter] = useState('all');
   const [selectedGroup, setSelectedGroup] = useState('all');
 
-  const ticket = mockTickets.find(t => t.id === selectedTicket);
+  const [tickets, setTickets] = useState<any[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch (e) {}
+  }, [tickets]);
+
+  const ticket = tickets.find((t: any) => t.id === selectedTicket);
 
   const handleReply = () => {
     if (replyText.trim()) {
       toast.success('Reply sent to student');
       setReplyText('');
+      // mark ticket as assigned/answered locally for demo purposes
+      if (selectedTicket) {
+        setTickets(prev => prev.map(t => t.id === selectedTicket ? { ...t, status: 'assigned' } : t));
+      }
     }
   };
 
@@ -88,6 +72,9 @@ export function AdminTickets({ user, navigate, logout }: AdminTicketsProps) {
   };
 
   const handleCloseTicket = () => {
+    if (selectedTicket) {
+      setTickets(prev => prev.map(t => t.id === selectedTicket ? { ...t, status: 'closed' } : t));
+    }
     toast.success('Ticket closed');
     setSelectedTicket(null);
   };
@@ -110,7 +97,7 @@ export function AdminTickets({ user, navigate, logout }: AdminTicketsProps) {
     }
   };
 
-  const filteredTickets = mockTickets.filter(ticket => {
+  const filteredTickets = tickets.filter((ticket: any) => {
     if (filter !== 'all' && ticket.status !== filter) return false;
     if (selectedGroup !== 'all' && ticket.group !== selectedGroup) return false;
     return true;
@@ -130,12 +117,20 @@ export function AdminTickets({ user, navigate, logout }: AdminTicketsProps) {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Tickets', value: '12', icon: Ticket, color: 'bg-blue-500' },
-            { label: 'Unresolved', value: '5', icon: Clock, color: 'bg-orange-500' },
-            { label: 'Resolved Today', value: '8', icon: CheckCircle2, color: 'bg-green-500' },
-            { label: 'High Priority', value: '2', icon: AlertCircle, color: 'bg-red-500' },
-          ].map((stat, index) => (
+          {(
+            () => {
+              const total = tickets.length;
+              const unresolved = tickets.filter(t => t.status !== 'closed').length;
+              const resolvedToday = tickets.filter(t => false).length; // placeholder
+              const highPriority = tickets.filter(t => t.priority === 'high').length;
+              return [
+                { label: 'Total Tickets', value: `${total}`, icon: Ticket, color: 'bg-blue-500' },
+                { label: 'Unresolved', value: `${unresolved}`, icon: Clock, color: 'bg-orange-500' },
+                { label: 'Resolved Today', value: `${resolvedToday}`, icon: CheckCircle2, color: 'bg-green-500' },
+                { label: 'High Priority', value: `${highPriority}`, icon: AlertCircle, color: 'bg-red-500' },
+              ];
+            }
+          )().map((stat, index) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 20 }}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLayout } from './AppLayout';
 import { User } from '../App';
@@ -35,7 +35,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface GroupDetailPageProps {
   user: User;
@@ -73,6 +73,46 @@ export function GroupDetailPage({ user, navigate, logout, groupId }: GroupDetail
     attachments: ''
   });
 
+  // Load persisted group details (members/posts/files) if present
+  useEffect(() => {
+    try {
+      const key = `groups_v1_${user.id}`;
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const groups = JSON.parse(raw) as any[];
+      const g = groups.find((x) => x.id === groupId || x.code === groupId);
+      if (g) {
+        // ensure creator is admin
+        const createdBy = g.createdBy;
+        const membersList = Array.isArray(g.membersList) ? g.membersList : [];
+        if (createdBy) {
+          const found = membersList.find((m: any) => m.id === createdBy);
+          if (found) found.isAdmin = true;
+          else {
+            // attempt to append creator if not present
+            membersList.unshift({ id: createdBy, name: 'Creator', role: 'CR', avatar: undefined, isAdmin: true, hasMessagePermission: true });
+          }
+        }
+
+        if (Array.isArray(membersList)) {
+          setMembers(membersList.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            role: m.role,
+            avatar: m.avatar,
+            isAdmin: !!m.isAdmin,
+            hasMessagePermission: !!m.hasMessagePermission
+          })));
+        }
+        if (Array.isArray(g.posts)) setPosts(g.posts);
+        if (Array.isArray(g.messages)) setMessages(g.messages);
+        if (Array.isArray(g.files)) setFiles(g.files);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [groupId, user.id]);
+
   const currentUserMember = members.find(m => m.name === user.name);
   const canSendMessage = currentUserMember?.isAdmin || (chatPermissionMode === 'everyone') || (chatPermissionMode === 'permission-based' && currentUserMember?.hasMessagePermission);
 
@@ -107,19 +147,46 @@ export function GroupDetailPage({ user, navigate, logout, groupId }: GroupDetail
   };
 
   const toggleAdmin = (memberId: string) => {
-    setMembers(prev => prev.map(m => 
-      m.id === memberId ? { ...m, isAdmin: !m.isAdmin } : m
-    ));
-    const member = members.find(m => m.id === memberId);
-    toast.success(`${member?.name} is now ${member?.isAdmin ? 'removed as' : 'promoted to'} admin! 👑`);
+    setMembers(prev => {
+      const next = prev.map(m => m.id === memberId ? { ...m, isAdmin: !m.isAdmin } : m);
+      // persist to groups storage
+      try {
+        const key = `groups_v1_${user.id}`;
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? (JSON.parse(raw) as any[]) : [];
+        const idx = parsed.findIndex(g => g.id === groupId || g.code === groupId);
+        if (idx !== -1) {
+          parsed[idx].membersList = next.map(m => ({ id: m.id, name: m.name, role: m.role, avatar: m.avatar, isAdmin: m.isAdmin, hasMessagePermission: m.hasMessagePermission }));
+          localStorage.setItem(key, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        // ignore
+      }
+      const changed = next.find(m => m.id === memberId);
+      toast.success(`${changed?.name} is now ${changed?.isAdmin ? 'promoted to' : 'removed as'} admin! 👑`);
+      return next;
+    });
   };
 
   const toggleMessagePermission = (memberId: string) => {
-    setMembers(prev => prev.map(m => 
-      m.id === memberId ? { ...m, hasMessagePermission: !m.hasMessagePermission } : m
-    ));
-    const member = members.find(m => m.id === memberId);
-    toast.success(`Message permission ${member?.hasMessagePermission ? 'revoked from' : 'granted to'} ${member?.name}!`);
+    setMembers(prev => {
+      const next = prev.map(m => m.id === memberId ? { ...m, hasMessagePermission: !m.hasMessagePermission } : m);
+      try {
+        const key = `groups_v1_${user.id}`;
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? (JSON.parse(raw) as any[]) : [];
+        const idx = parsed.findIndex(g => g.id === groupId || g.code === groupId);
+        if (idx !== -1) {
+          parsed[idx].membersList = next.map(m => ({ id: m.id, name: m.name, role: m.role, avatar: m.avatar, isAdmin: m.isAdmin, hasMessagePermission: m.hasMessagePermission }));
+          localStorage.setItem(key, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        // ignore
+      }
+      const changed = next.find(m => m.id === memberId);
+      toast.success(`Message permission ${changed?.hasMessagePermission ? 'granted to' : 'revoked from'} ${changed?.name}!`);
+      return next;
+    });
   };
 
   const getTypeColor = (type: string) => {
@@ -218,7 +285,7 @@ export function GroupDetailPage({ user, navigate, logout, groupId }: GroupDetail
                     <TabsTrigger value="chat">💬 Live Chat</TabsTrigger>
                   </TabsList>
                   
-                  {activeTab === 'posts' && (user.role === 'Faculty' || user.role === 'CR' || mockGroup.isAdmin) && (
+                  {activeTab === 'posts' && (user.role === 'Faculty' || user.role === 'CR' || currentUserMember?.isAdmin) && (
                     <Dialog open={createPostOpen} onOpenChange={setCreatePostOpen}>
                       <DialogTrigger asChild>
                         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -255,7 +322,7 @@ export function GroupDetailPage({ user, navigate, logout, groupId }: GroupDetail
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label>Type</Label>
-                              <Select value={newPost.type} onValueChange={(value) => setNewPost({ ...newPost, type: value })}>
+                              <Select value={newPost.type} onValueChange={(value: string) => setNewPost({ ...newPost, type: value })}>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
@@ -660,9 +727,9 @@ export function GroupDetailPage({ user, navigate, logout, groupId }: GroupDetail
                           <Label>Admin Rights</Label>
                         </div>
                         <Switch
-                          checked={member.isAdmin}
-                          onCheckedChange={() => toggleAdmin(member.id)}
-                        />
+                              checked={member.isAdmin}
+                              onCheckedChange={() => toggleAdmin(member.id)}
+                            />
                       </motion.div>
                       
                       <motion.div 

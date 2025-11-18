@@ -44,7 +44,7 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface PersonalBotProps {
   user: User;
@@ -91,6 +91,9 @@ export function PersonalBot({ user, navigate, logout }: PersonalBotProps) {
   const [escalateDialogOpen, setEscalateDialogOpen] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [suggestedGroup, setSuggestedGroup] = useState<typeof mockGroups[0] | null>(null);
+  const [availableGroups, setAvailableGroups] = useState<any[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [selectedAdminsByGroup, setSelectedAdminsByGroup] = useState<Record<string, string[]>>({});
 
   const sendInProgress = useRef(false);
 
@@ -287,17 +290,97 @@ export function PersonalBot({ user, navigate, logout }: PersonalBotProps) {
   };
 
   const sendToAdmins = (anonymous: boolean) => {
-    const mode = anonymous ? 'anonymously' : 'with your name';
-    toast.success(`✅ Question sent ${mode} to ${suggestedGroup?.name} admins!`, {
-      description: `Admins will respond in the Admin Tickets section.`
-    });
-    setEscalateDialogOpen(false);
-    setCurrentQuestion('');
-    setSuggestedGroup(null);
+    // Build tickets for each selected admin in selected groups
+    try {
+      const STORAGE = 'admin_tickets_v1';
+      const raw = localStorage.getItem(STORAGE);
+      const existing = raw ? JSON.parse(raw) as any[] : [];
+
+      // gather selected admins
+      const ticketsToCreate: any[] = [];
+      selectedGroupIds.forEach(groupId => {
+        const group = availableGroups.find(g => g.id === groupId || g.code === groupId);
+        const admins = selectedAdminsByGroup[groupId] || [];
+        // if no admins explicitly selected, default to all admins in the group
+        const adminsFinal = admins.length > 0 ? admins : (group?.membersList?.filter((m:any) => m.isAdmin).map((m:any) => m.id) || []);
+        adminsFinal.forEach((adminId: string) => {
+          const admin = group?.membersList?.find((m:any) => m.id === adminId) || { name: 'Admin' };
+          ticketsToCreate.push({
+            id: generateId(),
+            anonymous: anonymous,
+            student: anonymous ? 'Anonymous' : (user?.name || 'Student'),
+            createdAt: new Date().toLocaleString(),
+            message: currentQuestion,
+            group: group?.code || group?.name || 'Unknown',
+            priority: 'low',
+            status: 'new',
+            assignee: admin.name || adminId,
+            assigneeId: adminId,
+            context: []
+          });
+        });
+      });
+
+      if (ticketsToCreate.length === 0) {
+        toast.error('No admins selected to receive this question.');
+        return;
+      }
+
+      const next = [...ticketsToCreate, ...existing];
+      localStorage.setItem(STORAGE, JSON.stringify(next));
+
+      const mode = anonymous ? 'anonymously' : 'with your name';
+      toast.success(`✅ Question sent ${mode} to ${ticketsToCreate.length} admin(s)!`, {
+        description: `Admins will respond in the Admin Tickets section.`
+      });
+    } catch (err) {
+      console.error('Failed to create tickets', err);
+      toast.error('Failed to send to admins — try again');
+    } finally {
+      setEscalateDialogOpen(false);
+      setCurrentQuestion('');
+      setSuggestedGroup(null);
+      setSelectedGroupIds([]);
+      setSelectedAdminsByGroup({});
+    }
   };
 
   const handleSuggestedPrompt = (prompt: string) => {
     setInputMessage(prompt);
+  };
+
+  // Load available groups from persisted store when escalate dialog opens
+  useEffect(() => {
+    if (!escalateDialogOpen) return;
+    try {
+      const key = `groups_v1_${user?.id ?? 'anon'}`;
+      const raw = localStorage.getItem(key);
+      const groups = raw ? JSON.parse(raw) : [];
+      setAvailableGroups(groups || []);
+      // If suggestedGroup exists, pre-select it
+      if (suggestedGroup) {
+        const gid = suggestedGroup.id || suggestedGroup.code;
+        setSelectedGroupIds([gid]);
+        const group = groups.find((g: any) => g.id === gid || g.code === gid);
+        if (group && Array.isArray(group.membersList)) {
+          setSelectedAdminsByGroup({ [gid]: group.membersList.filter((m:any) => m.isAdmin).map((m:any) => m.id) });
+        }
+      }
+    } catch (err) {
+      setAvailableGroups([]);
+    }
+  }, [escalateDialogOpen, suggestedGroup]);
+
+  const toggleGroupSelection = (groupId: string) => {
+    setSelectedGroupIds(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
+  };
+
+  const toggleAdminSelection = (groupId: string, adminId: string) => {
+    setSelectedAdminsByGroup(prev => {
+      const list = prev[groupId] || [];
+      const nextList = list.includes(adminId) ? list.filter(id => id !== adminId) : [...list, adminId];
+      return { ...prev, [groupId]: nextList };
+    });
   };
 
   const createNewChat = () => {
@@ -819,60 +902,49 @@ export function PersonalBot({ user, navigate, logout }: PersonalBotProps) {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 pt-4">
-              {suggestedGroup && (
-                <motion.div 
-                  className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                    <h4>Detected Group</h4>
-                  </div>
-                  <p className="text-gray-700">{suggestedGroup.name} ({suggestedGroup.code})</p>
-                  <p className="text-gray-500 mt-1">Admins: {suggestedGroup.admins.join(', ')}</p>
-                </motion.div>
-              )}
-
               <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
-                <p className="mb-2">Your Question:</p>
-                <p className="text-gray-700 italic">"{currentQuestion}"</p>
-              </div>
+                  <p className="mb-2">Your Question:</p>
+                  <p className="text-gray-700 italic">"{currentQuestion}"</p>
+                </div>
 
-              <div className="space-y-3">
-                <h4>Choose how to send:</h4>
-                
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    onClick={() => sendToAdmins(true)}
-                    className="w-full h-auto py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white border-0 shadow-lg"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <UserX className="w-5 h-5" />
-                        <span>Send Anonymously</span>
+                <div className="space-y-3">
+                  <h4 className="mb-2">Select groups to forward to</h4>
+                  <div className="space-y-2 max-h-48 overflow-auto">
+                    {availableGroups.length === 0 && (
+                      <div className="p-3 text-gray-500">No groups available to forward to.</div>
+                    )}
+                    {availableGroups.map((g) => (
+                      <div key={g.id || g.code} className="p-2 border rounded-lg flex flex-col">
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" checked={selectedGroupIds.includes(g.id || g.code)} onChange={() => toggleGroupSelection(g.id || g.code)} />
+                          <span className="font-medium">{g.name} <span className="text-sm text-gray-500">({g.code})</span></span>
+                        </label>
+                        {selectedGroupIds.includes(g.id || g.code) && (
+                          <div className="mt-2 pl-6">
+                            <div className="text-sm text-gray-600 mb-1">Select admins:</div>
+                            {(g.membersList || []).filter((m:any) => m.isAdmin).length === 0 && (
+                              <div className="text-sm text-gray-500">No admins in this group</div>
+                            )}
+                            {(g.membersList || []).filter((m:any) => m.isAdmin).map((admin:any) => (
+                              <label key={admin.id} className="flex items-center gap-2 text-sm">
+                                <input type="checkbox" checked={(selectedAdminsByGroup[g.id || g.code] || []).includes(admin.id)} onChange={() => toggleAdminSelection(g.id || g.code, admin.id)} />
+                                <span>{admin.name} <span className="text-gray-400">({admin.role})</span></span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <p className="text-white/90 text-sm">Admins won't see your name or identity</p>
-                    </div>
-                  </Button>
-                </motion.div>
+                    ))}
+                  </div>
 
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    onClick={() => sendToAdmins(false)}
-                    variant="outline"
-                    className="w-full h-auto py-4 border-2 border-blue-300 hover:bg-blue-50"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <UserIcon className="w-5 h-5 text-blue-600" />
-                        <span>Send with Your Name</span>
-                      </div>
-                      <p className="text-gray-500 text-sm">Admins will see who asked the question</p>
+                  <div className="pt-4">
+                    <h4 className="mb-2">Send options</h4>
+                    <div className="flex gap-2">
+                      <Button onClick={() => sendToAdmins(true)} className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white">Send Anonymously</Button>
+                      <Button onClick={() => sendToAdmins(false)} variant="outline" className="flex-1">Send with Your Name</Button>
                     </div>
-                  </Button>
-                </motion.div>
-              </div>
+                  </div>
+                </div>
 
               <motion.div 
                 className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg"

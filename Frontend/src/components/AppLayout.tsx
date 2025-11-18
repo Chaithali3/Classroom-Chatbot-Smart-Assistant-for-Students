@@ -18,6 +18,7 @@ import {
   Ticket
 } from 'lucide-react';
 import { User as UserType } from '../App';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,15 +37,28 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, user, navigate, logout, currentRoute = '/dashboard' }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   // Start with zero notifications so users begin with a fresh state
   const [notificationCount] = useState(0);
+
+  // Check persisted groups to see if the current user created/admin any group
+  let userIsGroupAdmin = false;
+  try {
+    const raw = localStorage.getItem(`groups_v1_${user.id}`);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Array<any>;
+      userIsGroupAdmin = parsed.some(g => g && (g.createdBy === user.id || g.isAdmin === true && g.createdBy === user.id));
+    }
+  } catch (err) {
+    userIsGroupAdmin = false;
+  }
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', route: '/dashboard' },
     { icon: Users, label: 'Groups', route: '/groups' },
     { icon: Bot, label: 'Personal Bot', route: '/bot' },
     { icon: Bell, label: 'Notifications', route: '/notifications', badge: notificationCount },
-    ...(user.role === 'Faculty' || user.role === 'CR' ? [{ icon: Ticket, label: 'Admin Tickets', route: '/admin/tickets' }] : []),
+    ...((user.role === 'Faculty' || user.role === 'CR' || (user as any).isSiteAdmin || userIsGroupAdmin) ? [{ icon: Ticket, label: 'Admin Tickets', route: '/admin/tickets' }] : []),
     { icon: FileText, label: 'Docs', route: '/docs' },
     { icon: User, label: 'Profile', route: '/profile' },
   ];
@@ -101,7 +115,7 @@ export function AppLayout({ children, user, navigate, logout, currentRoute = '/d
         </nav>
 
         <div className="p-4 border-t">
-          <Button variant="ghost" className="w-full justify-start gap-3" onClick={logout}>
+          <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => setLogoutConfirmOpen(true)}>
             <LogOut className="w-5 h-5" />
             Logout
           </Button>
@@ -157,7 +171,7 @@ export function AppLayout({ children, user, navigate, logout, currentRoute = '/d
               </nav>
 
               <div className="p-4 border-t">
-                <Button variant="ghost" className="w-full justify-start gap-3" onClick={logout}>
+                <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => setLogoutConfirmOpen(true)}>
                   <LogOut className="w-5 h-5" />
                   Logout
                 </Button>
@@ -210,7 +224,7 @@ export function AppLayout({ children, user, navigate, logout, currentRoute = '/d
                   <span className="hidden md:inline">{user.name}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem onClick={() => navigate('/profile')}>
                   <User className="w-4 h-4 mr-2" />
                   Profile
@@ -220,7 +234,7 @@ export function AppLayout({ children, user, navigate, logout, currentRoute = '/d
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
+                <DropdownMenuItem onClick={() => setLogoutConfirmOpen(true)}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
@@ -241,6 +255,19 @@ export function AppLayout({ children, user, navigate, logout, currentRoute = '/d
       </div>
 
       {/* Mobile Bottom Navigation */}
+      {/* Logout confirmation dialog */}
+      <Dialog open={logoutConfirmOpen} onOpenChange={setLogoutConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogDescription>Are you sure you want to logout? You will need to sign in again to continue.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setLogoutConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { setLogoutConfirmOpen(false); logout(); }}>Logout</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-30">
         <div className="grid grid-cols-5 gap-1 p-2">
           {[

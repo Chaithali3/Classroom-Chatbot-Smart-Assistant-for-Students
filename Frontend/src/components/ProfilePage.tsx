@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { AppLayout } from './AppLayout';
 import { User } from '../App';
@@ -20,7 +20,8 @@ import {
   Trash2,
   Camera
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { getTheme, setTheme } from '../utils/theme';
 
 interface ProfilePageProps {
   user: User;
@@ -56,11 +57,14 @@ export function ProfilePage({ user, navigate, logout, onUpdateUser }: ProfilePag
     setPasswords({ current: '', new: '', confirm: '' });
   };
 
-  const myGroups = [
-    { id: '1', name: 'Data Structures', code: 'CS-301', role: 'Member' },
-    { id: '2', name: 'Physics Lab', code: 'PHY-201', role: 'Member' },
-    { id: '3', name: 'Management Principles', code: 'MGT-101', role: 'Admin' },
-  ];
+  // Start with no pre-seeded groups — groups should be created or joined by the user
+  const myGroups: Array<{ id: string; name: string; code: string; role: string }> = [];
+
+  const [isDark, setIsDark] = useState<boolean>(() => getTheme() === 'dark');
+
+  useEffect(() => {
+    setIsDark(getTheme() === 'dark');
+  }, []);
 
   return (
     <AppLayout user={user} navigate={navigate} logout={logout} currentRoute="/profile">
@@ -100,15 +104,15 @@ export function ProfilePage({ user, navigate, logout, onUpdateUser }: ProfilePag
                 <p className="text-gray-600 mb-4">{user.email}</p>
                 <div className="flex gap-4 text-gray-600">
                   <div>
-                    <p className="text-2xl mb-1">5</p>
+                    <p className="text-2xl mb-1">{myGroups.length}</p>
                     <p>Groups</p>
                   </div>
                   <div>
-                    <p className="text-2xl mb-1">92%</p>
+                    <p className="text-2xl mb-1">0%</p>
                     <p>Attendance</p>
                   </div>
                   <div>
-                    <p className="text-2xl mb-1">7</p>
+                    <p className="text-2xl mb-1">0</p>
                     <p>Day Streak</p>
                   </div>
                 </div>
@@ -270,7 +274,7 @@ export function ProfilePage({ user, navigate, logout, onUpdateUser }: ProfilePag
                         <Label>Dark Mode</Label>
                         <p className="text-gray-600">Switch to dark theme</p>
                       </div>
-                      <Switch />
+                      <Switch checked={isDark} onCheckedChange={(val: boolean) => { setIsDark(val); setTheme(val ? 'dark' : 'light'); }} />
                     </div>
                   </div>
 
@@ -302,20 +306,26 @@ export function ProfilePage({ user, navigate, logout, onUpdateUser }: ProfilePag
                   </div>
 
                   <div className="space-y-3">
-                    {myGroups.map((group) => (
-                      <div key={group.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <div>
-                          <p>{group.name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="secondary">{group.code}</Badge>
-                            <Badge variant="outline">{group.role}</Badge>
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/groups')}>
-                          Open
-                        </Button>
+                    {myGroups.length === 0 ? (
+                      <div className="p-6 text-center text-gray-600 bg-gray-50 rounded-lg">
+                        You are not a member of any groups yet. Create or join a group to see it here.
                       </div>
-                    ))}
+                    ) : (
+                      myGroups.map((group) => (
+                        <div key={group.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div>
+                            <p>{group.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary">{group.code}</Badge>
+                              <Badge variant="outline">{group.role}</Badge>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => navigate('/groups')}>
+                            Open
+                          </Button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </Card>

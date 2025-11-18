@@ -4,9 +4,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/select';
 import { Card } from './ui/card';
 import { Bot, ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { User } from '../App';
 
 interface LoginPageProps {
@@ -18,19 +19,59 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSiteAdmin, setIsSiteAdmin] = useState(false);
+  const [role, setRole] = useState<'Student' | 'CR' | 'Faculty'>('Student');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Demo login
-    toast.success('Welcome back!');
-    onLogin({
-      id: '1',
-      name: 'Demo Student',
-      email: email || 'demo@student.com',
-      role: 'Student',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo'
-    });
+    // If email is blank, keep the previous demo behaviour (quick anonymous/demo login)
+    if (!email) {
+      toast.success('Welcome back!');
+      let uid = '';
+      try {
+        uid = (window.crypto && (window.crypto as any).randomUUID && (window.crypto as any).randomUUID()) || `u_${Date.now()}`;
+      } catch (err) {
+        uid = `u_${Date.now()}`;
+      }
+      const userEmail = role === 'Student' ? 'demo@student.com' : role === 'CR' ? 'demo@cr.com' : 'demo@faculty.com';
+      const userName = role === 'Student' ? 'Student' : role === 'CR' ? 'CR' : 'Faculty';
+      onLogin({
+        id: uid,
+        name: userName,
+        email: userEmail,
+        role: role,
+        isSiteAdmin: isSiteAdmin,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`
+      });
+      return;
+    }
+
+    // Otherwise validate against persisted demo users in localStorage
+    try {
+      const raw = localStorage.getItem('users_v1');
+      const users = raw ? (JSON.parse(raw) as any[]) : [];
+      const found = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+      if (!found) {
+        toast.error('No account found for that email. Please sign up.');
+        return;
+      }
+      if ((found.password || '') !== password) {
+        toast.error('Incorrect password.');
+        return;
+      }
+      // Successful login
+      toast.success('Welcome back!');
+      onLogin({
+        id: found.id,
+        name: found.name,
+        email: found.email,
+        role: found.role,
+        isSiteAdmin: found.isSiteAdmin,
+        avatar: found.avatar
+      });
+    } catch (err) {
+      toast.error('Login failed — please try again.');
+    }
   };
 
   return (
@@ -86,6 +127,20 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>I am a</Label>
+              <Select value={role} onValueChange={(v: any) => setRole(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Student">Student</SelectItem>
+                  <SelectItem value="CR">Class Representative</SelectItem>
+                  <SelectItem value="Faculty">Faculty</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -95,6 +150,16 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
                 />
                 <Label htmlFor="remember" className="cursor-pointer">
                   Remember me
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="siteAdmin"
+                  checked={isSiteAdmin}
+                  onCheckedChange={(checked) => setIsSiteAdmin(checked as boolean)}
+                />
+                <Label htmlFor="siteAdmin" className="cursor-pointer">
+                  Site Admin (demo)
                 </Label>
               </div>
               <Button

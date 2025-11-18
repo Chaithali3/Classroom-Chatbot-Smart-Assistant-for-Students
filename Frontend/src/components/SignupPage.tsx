@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Card } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Bot, ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { User } from '../App';
 
 interface SignupPageProps {
@@ -30,19 +30,42 @@ export function SignupPage({ navigate, onSignup }: SignupPageProps) {
       toast.error('Passwords do not match');
       return;
     }
+    // Check for existing account
+    try {
+      const raw = localStorage.getItem('users_v1');
+      const users = raw ? (JSON.parse(raw) as any[]) : [];
+      if (users.some(u => (u.email || '').toLowerCase() === formData.email.toLowerCase())) {
+        toast.error('An account with that email already exists. Please sign in.');
+        return;
+      }
 
-    toast.success('Account created successfully! Please verify your email.');
-    
-    // Demo signup
-    setTimeout(() => {
-      onSignup({
-        id: '1',
+      // Create and persist the user (demo plaintext password)
+      const uid = (window.crypto && (window.crypto as any).randomUUID && (window.crypto as any).randomUUID()) || `u_${Date.now()}`;
+      const newUser = {
+        id: uid,
         name: formData.username,
         email: formData.email,
         role: formData.role,
+        password: formData.password,
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.username}`
-      });
-    }, 1500);
+      };
+      const next = [newUser, ...users];
+      localStorage.setItem('users_v1', JSON.stringify(next));
+
+      toast.success('Account created successfully! You are now signed in.');
+      setTimeout(() => {
+        onSignup({
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          avatar: newUser.avatar
+        });
+      }, 500);
+      return;
+    } catch (err) {
+      toast.error('Signup failed — please try again.');
+    }
   };
 
   return (

@@ -48,7 +48,7 @@ export function Dashboard({ user, navigate, logout }: DashboardProps) {
     setAchievement({
       id: '1',
       title: 'Week Warrior!',
-      description: 'You\'ve maintained a 7-day streak!',
+      description: `You've maintained a ${streakDays}-day streak!`,
       icon: 'trophy',
       show: true
     });
@@ -297,7 +297,7 @@ export function Dashboard({ user, navigate, logout }: DashboardProps) {
                     <span className="group-hover:text-blue-600 transition-colors">Join Group by Code</span>
                   </Button>
                 </motion.div>
-                {(user.role === 'Faculty' || user.role === 'CR') && (
+                {(user.role === 'Faculty' || user.role === 'CR' || (user as any).isSiteAdmin) && (
                   <motion.div whileHover={{ scale: 1.05, x: 5 }} whileTap={{ scale: 0.95 }}>
                     <Button 
                       variant="outline" 
