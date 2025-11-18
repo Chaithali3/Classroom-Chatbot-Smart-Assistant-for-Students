@@ -1,0 +1,315 @@
+/* Dark mode visual enhancements — overrides common utility classes for a neat, WhatsApp-like dark UI */
+
+:root {
+  --app-dark-bg: #071226; /* main app background */
+  --surface-dark: #0b1220; /* panels/cards */
+  --card-dark: #0f1724;
+  --muted-dark: #9fb0c8;
+  --text-dark: #e6eef8;
+  --border-dark: rgba(255,255,255,0.06);
+  --accent-soft: rgba(99,102,241,0.06);
+}
+
+.dark body,
+.dark .min-h-screen,
+.dark .bg-gray-50 {
+  background-color: var(--app-dark-bg) !important;
+  color: var(--text-dark) !important;
+}
+
+.dark .bg-white,
+.dark .bg-card,
+.dark .bg-blue-50,
+.dark .bg-purple-50,
+.dark .bg-gradient-to-r {
+  background-color: var(--surface-dark) !important;
+  color: var(--text-dark) !important;
+}
+
+.dark .card,
+.dark .p-6,
+.dark .rounded-lg,
+.dark .rounded-xl {
+  background-color: var(--card-dark) !important;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500 {
+  color: var(--muted-dark) !important;
+}
+
+.dark .text-gray-400,
+.dark .text-xs.text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+.dark .border,
+.dark .border-b,
+.dark .border-t,
+.dark .border-r,
+.dark .border-l,
+.dark .border-2 {
+  border-color: var(--border-dark) !important;
+}
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-blue-50:hover,
+.dark .hover\:bg-gradient-to-r:hover {
+  background-color: rgba(255,255,255,0.02) !important;
+}
+
+.dark .Search, /* svg icon fallback */
+.dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+.dark .bg-blue-50,
+.dark .from-blue-50,
+.dark .to-blue-50,
+.dark .from-purple-50,
+.dark .to-purple-50 {
+  background: linear-gradient(90deg, rgba(99,102,241,0.03), rgba(139,92,246,0.03)) !important;
+}
+
+/* Inputs and textareas */
+.dark input,
+.dark textarea,
+.dark .input,
+.dark .bg-input-background {
+  background-color: rgba(255,255,255,0.02) !important;
+  color: var(--text-dark) !important;
+  border-color: var(--border-dark) !important;
+}
+
+/* Buttons: make primary/outline visible */
+.dark .btn,
+.dark .button,
+.dark .bg-primary,
+.dark .variant-secondary {
+  color: var(--text-dark) !important;
+}
+
+/* Ensure avatars remain muted where appropriate */
+.dark .avatar,
+.dark .Avatar { color: var(--muted-dark) !important; }
+
+/* Make lists and cards contrast nicely */
+.dark .list-item,
+.dark .p-4,
+.dark .p-3 {
+  background-color: transparent !important;
+}
+
+/* Misc fixes for modal/dialog backgrounds */
+.dark .fixed.left-0.top-0.h-screen.w-64,
+.dark .fixed.left-0.top-0.h-screen.w-64.bg-white {
+  background-color: var(--surface-dark) !important;
+}
+
+/* Small helper: ensure plain bg-white elements switch cleanly */
+.dark .bg-white { background-color: var(--surface-dark) !important; }
+
+/* Ensure primary content text is always readable in dark mode */
+.dark main,
+.dark header,
+.dark nav,
+.dark .card,
+.dark .p-6,
+.dark .p-4,
+.dark .p-3,
+.dark .rounded-lg,
+.dark .rounded-xl,
+.dark .min-h-screen {
+  color: var(--text-dark) !important;
+}
+
+/* Buttons/links: header and nav are handled specifically; avoid forcing all buttons' color so icons keep their intended hues */
+
+/* Badges, labels, and small text should remain legible */
+.dark .badge,
+.dark .Badge,
+.dark .label,
+.dark .text-xs,
+.dark .text-sm,
+.dark .Label {
+  color: var(--muted-dark) !important;
+}
+
+/* Inputs and placeholders */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--muted-dark) !important;
+}
+
+/* Make sure text inside gradient/colored panels is visible */
+.dark .bg-gradient-to-r *,
+.dark .from-blue-50 *,
+.dark .from-purple-50 *,
+.dark .to-blue-50 * {
+  color: var(--text-dark) !important;
+}
+
+/* Avatar coloring kept above; avoid globally muting all SVG icons so colored icons remain intact */
+
+/* Stronger contrast for headings */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5 {
+  color: var(--text-dark) !important;
+}
+
+/* Broad rule: convert common Tailwind background utilities to dark surfaces and force readable text */
+.dark [class*="bg-"] {
+  background-color: var(--surface-dark) !important;
+  color: var(--text-dark) !important;
+}
+
+.dark [class*="bg-"] * {
+  color: var(--text-dark) !important;
+}
+
+/* Inputs, selects and textareas should have dark backgrounds and clear text */
+.dark input,
+.dark textarea,
+.dark select,
+.dark .input,
+.dark .select,
+.dark .Search,
+.dark .search,
+.dark .search input {
+  background-color: rgba(255,255,255,0.02) !important;
+  color: var(--text-dark) !important;
+  border-color: var(--border-dark) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder,
+.dark .input::placeholder {
+  color: var(--muted-dark) !important;
+}
+
+/* Dialogs/modals and card containers */
+.dark .dialog-content,
+.dark .DialogContent,
+.dark .modal,
+.dark .popover,
+.dark .card,
+.dark .Card {
+  background-color: var(--card-dark) !important;
+  color: var(--text-dark) !important;
+  border-color: var(--border-dark) !important;
+}
+
+/* Buttons and interactive elements */
+.dark button,
+.dark .btn,
+.dark .button,
+.dark .variant-ghost,
+.dark .variant-outline,
+.dark .variant-secondary {
+  color: var(--text-dark) !important;
+  border-color: var(--border-dark) !important;
+  background-color: transparent !important;
+}
+
+/* Badges and labels */
+.dark .badge,
+.dark .Badge,
+.dark .label,
+.dark .Label {
+  background-color: rgba(255,255,255,0.03) !important;
+  color: var(--muted-dark) !important;
+  border-color: var(--border-dark) !important;
+}
+
+/* Ensure hover states remain subtle but visible */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-blue-50:hover,
+.dark .hover\:bg-gradient-to-r:hover {
+  background-color: rgba(255,255,255,0.03) !important;
+}
+
+/* Top header and left sidebar stronger contrast */
+.dark header.sticky,
+.dark .fixed.left-0.top-0.h-screen.w-64 {
+  background-color: var(--surface-dark) !important;
+  color: var(--text-dark) !important;
+  border-color: var(--border-dark) !important;
+}
+
+/* Switch (Radix) styling: ensure track and thumb are visible in both themes */
+[data-slot="switch"] {
+  background-color: #e6eef8; /* light track */
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  width: 2rem;
+  height: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 9999px;
+}
+
+[data-slot="switch"][data-state="checked"] {
+  background-color: #6366f1; /* indigo */
+}
+
+[data-slot="switch-thumb"] {
+  width: 0.9rem;
+  height: 0.9rem;
+  background: #ffffff;
+  border-radius: 9999px;
+  box-shadow: 0 1px 2px rgba(2,6,23,0.2);
+  transition: transform 150ms cubic-bezier(.2,.9,.3,1);
+}
+
+/* Dark mode overrides for the switch */
+.dark [data-slot="switch"] {
+  background-color: rgba(255,255,255,0.04) !important;
+  border: 1px solid var(--border-dark) !important;
+}
+.dark [data-slot="switch"][data-state="checked"] {
+  background-color: #7c3aed !important;
+}
+.dark [data-slot="switch-thumb"] {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(2,6,23,0.45) !important;
+}
+
+
+/* Header, sidebar and top navigation specific fixes */
+.dark header.sticky,
+.dark .lg\:flex.fixed.left-0.top-0.h-screen.w-64,
+.dark .lg\:hidden.fixed.left-0.top-0.h-screen.w-64 {
+  background-color: var(--surface-dark) !important;
+  color: var(--text-dark) !important;
+  border-color: var(--border-dark) !important;
+}
+
+.dark header.sticky .button,
+.dark header.sticky a,
+.dark header.sticky span,
+.dark .lg\:flex.fixed.left-0.top-0.h-screen.w-64 .button,
+.dark .lg\:flex.fixed.left-0.top-0.h-screen.w-64 a,
+.dark .lg\:flex.fixed.left-0.top-0.h-screen.w-64 span {
+  color: var(--text-dark) !important;
+  opacity: 1 !important;
+}
+
+/* Mobile bottom nav */
+.dark nav.fixed.bottom-0.left-0.right-0.bg-white {
+  background-color: var(--surface-dark) !important;
+  border-top-color: var(--border-dark) !important;
+}
+
+/* Ensure any ghost/outline buttons in header and nav are legible */
+.dark .variant-ghost,
+.dark .btn-ghost,
+.dark .button-ghost {
+  color: var(--text-dark) !important;
+}
+
+/* Make sure header small text (like Login/Get Started) is visible */
+.dark header.sticky .text-gray-600,
+.dark header.sticky .text-gray-400 {
+  color: var(--muted-dark) !important;
+}
+
